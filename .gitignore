@@ -1,0 +1,25 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Generated output folders
+output/
+summaries/
+snapshots/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Personal data
+recent_projects.json
+
+# macOS
+.DS_Store
+
+
+# IDE
+.vscode/
+.idea/

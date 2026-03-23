@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ContextForLLM</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117; color: #e2e8f0; min-height: 100vh;
+    }
+    header {
+      padding: 20px 32px; border-bottom: 1px solid #1e2535;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+    header span { font-size: 13px; color: #64748b; }
+    .container { max-width: 980px; margin: 0 auto; padding: 32px 24px; }
+    .card {
+      background: #161b27; border: 1px solid #1e2535;
+      border-radius: 12px; padding: 24px; margin-bottom: 20px;
+    }
+    .card-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 14px; font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .input-row { display: flex; gap: 10px; }
+    input[type="text"], input[type="password"], textarea {
+      width: 100%; background: #0f1117; border: 1px solid #1e2535;
+      border-radius: 8px; padding: 10px 14px; color: #e2e8f0;
+      font-size: 14px; outline: none; transition: border-color 0.2s;
+    }
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    textarea:focus { border-color: #3b82f6; }
+    textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+    button {
+      background: #3b82f6; color: #fff; border: none; border-radius: 8px;
+      padding: 10px 20px; font-size: 14px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: background 0.2s;
+    }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #1e3a5f; color: #475569; cursor: not-allowed; }
+    button.secondary { background: #1e2535; color: #94a3b8; }
+    button.secondary:hover { background: #263044; }
+
+    /* Groq key pill in header */
+    .groq-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: #1e2535; border: 1px solid #263044;
+      border-radius: 999px; padding: 6px 14px; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .groq-pill:hover { border-color: #3b82f6; }
+    .groq-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #334155;
+      transition: background 0.3s;
+    }
+    .groq-dot.active { background: #4ade80; }
+    .groq-pill-label { font-size: 12px; color: #64748b; }
+
+    /* Groq key modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; display: none;
+    }
+    .modal-backdrop.visible { display: flex; }
+    .modal {
+      background: #161b27; border: 1px solid #1e2535; border-radius: 12px;
+      padding: 28px; width: 100%; max-width: 460px;
+    }
+    .modal h3 {
+      font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 8px;
+    }
+    .modal p { font-size: 13px; color: #64748b; margin-bottom: 16px; line-height: 1.6; }
+    .modal-row { display: flex; gap: 10px; margin-top: 12px; }
+    .modal-footer {
+      margin-top: 12px; font-size: 12px; color: #334155; line-height: 1.6;
+    }
+    .modal-error {
+      font-size: 13px; color: #fca5a5; margin-top: 8px; display: none;
+    }
+
+    /* Toggle */
+    .toggle-wrap {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: #64748b; cursor: pointer; user-select: none;
+    }
+    .toggle { position: relative; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: #1e2535;
+      border-radius: 999px; transition: background 0.2s; cursor: pointer;
+    }
+    .toggle-slider::before {
+      content: ""; position: absolute; width: 14px; height: 14px;
+      left: 3px; top: 3px; background: #475569; border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle input:checked + .toggle-slider { background: #1d4ed8; }
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(16px); background: #fff;
+    }
+
+    /* Recent */
+    .recent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px; margin-top: 4px;
+    }
+    .recent-card {
+      background: #0f1117; border: 1px solid #1e2535;
+      border-radius: 8px; padding: 14px; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s; position: relative;
+    }
+    .recent-card:hover { border-color: #3b82f6; background: #131929; }
+    .recent-card-name {
+      font-size: 14px; font-weight: 600; color: #e2e8f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 4px; padding-right: 20px;
+    }
+    .recent-card-path {
+      font-size: 11px; color: #475569; font-family: monospace;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .recent-remove {
+      position: absolute; top: 8px; right: 8px;
+      background: none; border: none; color: #334155;
+      font-size: 14px; cursor: pointer; padding: 2px 5px; border-radius: 4px;
+    }
+    .recent-remove:hover { color: #ef4444; background: #1f0a0a; }
+    .no-recent { font-size: 13px; color: #334155; padding: 8px 0; }
+
+    /* Stats */
+    .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+    .stat {
+      background: #0f1117; border: 1px solid #1e2535;
+      border-radius: 8px; padding: 12px 18px; text-align: center; min-width: 110px;
+    }
+    .stat .value { font-size: 20px; font-weight: 700; color: #fff; }
+    .stat .label { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+    /* Token bar */
+    .token-bar-wrap { margin-top: 16px; }
+    .token-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: #64748b; margin-bottom: 6px;
+    }
+    .token-bar-bg { background: #0f1117; border-radius: 999px; height: 8px; overflow: hidden; }
+    .token-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s; background: #3b82f6; }
+    .token-bar-fill.warn { background: #f59e0b; }
+    .token-bar-fill.over { background: #ef4444; }
+
+    /* Banner */
+    .banner {
+      margin-top: 12px; padding: 10px 14px;
+      border-radius: 8px; font-size: 13px; display: none;
+    }
+    .banner.visible { display: block; }
+    .banner.green { background: #0f1a0f; border: 1px solid #14532d; color: #4ade80; }
+
+    /* File list */
+    .file-list { margin-top: 12px; border: 1px solid #1e2535; border-radius: 8px; overflow: hidden; }
+    .file-item { border-bottom: 1px solid #1a2030; transition: background 0.15s; }
+    .file-item:last-child { border-bottom: none; }
+    .file-item:hover { background: #1a2030; }
+    .file-item.excluded { opacity: 0.45; }
+    .file-main {
+      display: flex; justify-content: space-between;
+      align-items: center; padding: 10px 14px; font-size: 13px;
+    }
+    .file-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .file-path {
+      color: #94a3b8; font-family: monospace;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .file-item.excluded .file-path { text-decoration: line-through; color: #475569; }
+    .file-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .file-tokens { color: #475569; font-size: 12px; }
+    .excluded-badge {
+      font-size: 11px; color: #ef4444; background: #1f0a0a;
+      border: 1px solid #7f1d1d; border-radius: 4px; padding: 2px 6px; display: none;
+    }
+    .file-item.excluded .excluded-badge { display: inline; }
+
+    /* Annotation */
+    .annotation-row { padding: 0 14px 10px 14px; display: none; }
+    .annotation-row.visible { display: block; }
+    .annotation-input {
+      width: 100%; background: #0a0d14; border: 1px solid #1e2535;
+      border-radius: 6px; padding: 7px 10px; color: #94a3b8;
+      font-size: 12px; font-family: inherit; outline: none; transition: border-color 0.2s;
+    }
+    .annotation-input:focus { border-color: #3b82f6; }
+    .annotation-input::placeholder { color: #334155; }
+    .annotation-input.has-value { border-color: #1d4ed8; color: #93c5fd; }
+
+    /* Exclusion summary */
+    .exclusion-summary {
+      margin-top: 10px; font-size: 12px; color: #64748b;
+      padding: 8px 12px; background: #0f1117; border-radius: 6px; display: none;
+    }
+    .exclusion-summary.visible { display: block; }
+    .exclusion-summary span { color: #f59e0b; font-weight: 600; }
+
+    /* Tree */
+    .tree-box {
+      background: #0f1117; border: 1px solid #1e2535; border-radius: 8px;
+      padding: 14px; font-family: monospace; font-size: 13px; color: #64748b;
+      white-space: pre; overflow-x: auto; max-height: 200px; overflow-y: auto;
+      margin-top: 12px;
+    }
+    .section-label { font-size: 13px; color: #64748b; margin-bottom: 6px; margin-top: 20px; }
+    .edit-hint { font-size: 12px; color: #f59e0b; margin-bottom: 8px; display: none; }
+    .edit-hint.visible { display: block; }
+
+    /* Summary card */
+    #summary-editor {
+      width: 100%; background: #0f1117; border: 1px solid #1e2535;
+      border-radius: 8px; padding: 12px 14px; color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      resize: vertical; outline: none; transition: border-color 0.2s;
+      min-height: 160px; font-size: 13px; line-height: 1.6;
+    }
+    #summary-editor:focus { border-color: #3b82f6; }
+
+    /* Output */
+    .parts-list { margin-top: 12px; }
+    .part-item {
+      background: #0f1117; border: 1px solid #1e2535;
+      border-radius: 8px; padding: 16px; margin-bottom: 12px;
+    }
+    .part-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+    }
+    .part-title { font-size: 14px; font-weight: 600; color: #fff; }
+    .part-tokens { font-size: 12px; color: #64748b; }
+    .copy-btn {
+      background: #1e2535; color: #94a3b8; border: none; border-radius: 6px;
+      padding: 6px 14px; font-size: 12px; cursor: pointer; transition: background 0.2s;
+    }
+    .copy-btn:hover { background: #263044; color: #e2e8f0; }
+    .copy-btn.copied { background: #14532d; color: #4ade80; }
+    .prompt-preview {
+      background: #0a0d14; border-radius: 6px; padding: 12px;
+      font-family: monospace; font-size: 12px; color: #475569;
+      max-height: 120px; overflow-y: auto; white-space: pre-wrap;
+      word-break: break-word; margin-top: 8px;
+    }
+    .instructions {
+      margin-top: 12px; padding: 14px; background: #0f1117;
+      border: 1px solid #1e3a5f; border-radius: 8px;
+      font-size: 13px; color: #64748b; line-height: 1.7;
+    }
+    .instructions strong { color: #3b82f6; }
+    .error {
+      background: #1f0a0a; border: 1px solid #7f1d1d; color: #fca5a5;
+      border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-top: 12px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- Groq key modal -->
+<div class="modal-backdrop" id="groq-modal">
+  <div class="modal">
+    <h3>Groq API Key</h3>
+    <p>
+      Your key is used only for this session and is never saved to disk.
+      Get a free key at <strong>console.groq.com</strong>.
+    </p>
+    <input type="password" id="groq-key-input"
+      placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"/>
+    <div class="modal-error" id="groq-modal-error"></div>
+    <div class="modal-row">
+      <button onclick="saveGroqKey()">Save for this session</button>
+      <button class="secondary" onclick="closeGroqModal()">Cancel</button>
+    </div>
+    <div class="modal-footer">
+      Your key is held in memory only. It is cleared when you close the app.
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-left">
+    <h1>ContextForLLM</h1>
+    <span>Generate LLM-ready context from any project</span>
+  </div>
+  <div class="groq-pill" onclick="openGroqModal()">
+    <div class="groq-dot" id="groq-dot"></div>
+    <span class="groq-pill-label" id="groq-pill-label">Add Groq Key</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Step 1 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Step 1 — Point to your project</h2>
+    </div>
+    <div class="input-row">
+      <input type="text" id="project-path"
+        placeholder="/Users/yourname/Desktop/my-project"/>
+      <button onclick="scanProject()">Scan</button>
+    </div>
+    <div id="scan-error" class="error hidden"></div>
+    <!-- <div id="recent-section" style="margin-top:20px;">
+      <div style="font-size:13px;color:#475569;margin-bottom:10px;">
+        Recent projects
+      </div>
+      <div class="recent-grid" id="recent-grid">
+        <div class="no-recent">No recent projects yet</div>
+      </div> -->
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="card hidden" id="results-section">
+    <div class="card-header">
+      <h2>Step 2 — Review and select files</h2>
+      <label class="toggle-wrap">
+        <span id="edit-label">Edit mode off</span>
+        <div class="toggle">
+          <input type="checkbox" id="edit-toggle" onchange="toggleEditMode()"/>
+          <div class="toggle-slider"></div>
+        </div>
+      </label>
+    </div>
+
+    <div class="stats" id="stats-row"></div>
+
+    <div class="token-bar-wrap">
+      <div class="token-bar-label">
+        <span>Token usage</span>
+        <span id="token-bar-text"></span>
+      </div>
+      <div class="token-bar-bg">
+        <div class="token-bar-fill" id="token-bar"></div>
+      </div>
+    </div>
+
+    <div id="ignore-banner" class="banner green"></div>
+
+    <div class="section-label">Folder structure</div>
+    <div class="tree-box" id="tree-box"></div>
+
+    <div class="section-label">Files included</div>
+    <div id="edit-hint" class="edit-hint">
+      Edit mode is on — toggle files to exclude them,
+      add annotations to give the LLM notes about each file
+    </div>
+    <div class="file-list" id="file-list"></div>
+    <div class="exclusion-summary" id="exclusion-summary"></div>
+  </div>
+
+  <!-- Project Summary -->
+  <div class="card hidden" id="summary-section">
+    <div class="card-header">
+      <h2>Project Summary
+        <span style="font-size:11px;color:#334155;font-weight:400;
+          text-transform:none;letter-spacing:0;margin-left:6px;">
+          powered by Groq
+        </span>
+      </h2>
+      <div style="display:flex;gap:8px;">
+        <button class="secondary" id="summary-generate-btn"
+          onclick="generateSummary()">Generate Summary</button>
+        <button class="secondary" id="summary-delete-btn"
+          onclick="deleteSummary()" style="display:none;">Remove</button>
+      </div>
+    </div>
+
+    <div id="summary-status"
+      style="font-size:13px;color:#475569;margin-bottom:12px;"></div>
+
+    <div id="summary-loading" style="display:none;">
+      <div style="font-size:13px;color:#64748b;padding:16px 0;">
+        Groq is reading your code and generating a summary...
+      </div>
+    </div>
+
+    <div id="summary-editor-wrap" style="display:none;">
+      <textarea id="summary-editor"
+        placeholder="Summary will appear here. You can edit it."></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+        <button onclick="saveSummary()"
+          style="padding:7px 16px;font-size:13px;">Save Changes</button>
+        <button class="secondary" id="summary-copy-btn"
+          onclick="copySummary()"
+          style="padding:7px 16px;font-size:13px;">Copy</button>
+        <span id="summary-save-status"
+          style="font-size:12px;color:#4ade80;display:none;">Saved</span>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#334155;">
+        This summary will be injected at the top of every prompt you generate.
+      </div>
+    </div>
+
+    <div id="summary-error" class="error hidden"></div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="card hidden" id="generate-section">
+    <div class="card-header">
+      <h2>Step 3 — Set your task and generate</h2>
+    </div>
+    <textarea id="task-input"
+      placeholder="What do you want the LLM to do in this session?&#10;Example: Review this code and suggest improvements&#10;Example: Help me add user authentication&#10;(Leave blank to just load the context)">
+    </textarea>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button onclick="generatePrompts()">Generate Context Prompt</button>
+      <button class="secondary" onclick="resetAll()">Start Over</button>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="card hidden" id="output-section">
+    <div class="card-header">
+      <h2>Step 4 — Your prompts are ready</h2>
+    </div>
+    <div id="instructions-wrap"></div>
+    <div class="parts-list" id="parts-list"></div>
+  </div>
+
+</div>
+
+<script>
+  let scannedPath = "";
+  let allFiles = [];
+  let excludedFiles = new Set();
+  let annotations = {};
+  let generatedParts = [];
+  let editModeOn = false;
+  let summaryExists = false;
+  let groqKeySet = false;
+
+  // ── Init ──────────────────────────────────────────────────────
+  window.addEventListener("load", async () => {
+    loadRecent();
+    const res = await fetch("/api/groq-key/status");
+    const data = await res.json();
+    setGroqStatus(data.has_key);
+  });
+
+  // ── Groq key modal ────────────────────────────────────────────
+  function openGroqModal() {
+    document.getElementById("groq-modal").classList.add("visible");
+    document.getElementById("groq-key-input").focus();
+  }
+
+  function closeGroqModal() {
+    document.getElementById("groq-modal").classList.remove("visible");
+    document.getElementById("groq-modal-error").style.display = "none";
+    document.getElementById("groq-key-input").value = "";
+  }
+
+  async function saveGroqKey() {
+    const key = document.getElementById("groq-key-input").value.trim();
+    const errEl = document.getElementById("groq-modal-error");
+    errEl.style.display = "none";
+
+    const res = await fetch("/api/groq-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.error;
+      errEl.style.display = "block";
+      return;
+    }
+
+    setGroqStatus(true);
+    closeGroqModal();
+  }
+
+  function setGroqStatus(active) {
+    groqKeySet = active;
+    document.getElementById("groq-dot").classList.toggle("active", active);
+    document.getElementById("groq-pill-label").textContent =
+      active ? "Groq Key Active" : "Add Groq Key";
+  }
+
+  // Close modal on backdrop click
+  document.getElementById("groq-modal").addEventListener("click", function(e) {
+    if (e.target === this) closeGroqModal();
+  });
+
+  // Enter key in key input
+  document.getElementById("groq-key-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") saveGroqKey();
+  });
+
+  // ── Recent projects ───────────────────────────────────────────
+  async function loadRecent() {
+    try {
+      const res = await fetch("/api/recent");
+      const data = await res.json();
+      renderRecent(data.recent);
+    } catch (e) {}
+  }
+
+  function renderRecent(recent) {
+    const grid = document.getElementById("recent-grid");
+    if (!recent || recent.length === 0) {
+      grid.innerHTML = `<div class="no-recent">No recent projects yet</div>`;
+      return;
+    }
+    grid.innerHTML = recent.map(r => `
+      <div class="recent-card"
+        onclick="loadRecentProject('${escapeAttr(r.path)}')">
+        <button class="recent-remove"
+          onclick="removeRecent(event, '${escapeAttr(r.path)}')">✕</button>
+        <div class="recent-card-name">${escapeHtml(r.name)}</div>
+        <div class="recent-card-path">${escapeHtml(r.path)}</div>
+      </div>
+    `).join("");
+  }
+
+  function loadRecentProject(path) {
+    document.getElementById("project-path").value = path;
+    scanProject();
+  }
+
+  async function removeRecent(event, path) {
+    event.stopPropagation();
+    await fetch("/api/recent/remove", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path })
+    });
+    loadRecent();
+  }
+
+  // ── Scan ──────────────────────────────────────────────────────
+  async function scanProject() {
+    const path = document.getElementById("project-path").value.trim();
+    if (!path) return;
+    const errEl = document.getElementById("scan-error");
+    errEl.classList.add("hidden");
+    try {
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_path: path })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || "Unknown error";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      scannedPath = data.project_path;
+      allFiles = data.files;
+      excludedFiles = new Set();
+      annotations = {};
+
+      const banner = document.getElementById("ignore-banner");
+      if (data.contextignore_rules && data.contextignore_rules.length > 0) {
+        banner.textContent =
+          `✓ .contextignore found — ${data.contextignore_rules.length} ` +
+          `rule(s) applied: ` + data.contextignore_rules.join(", ");
+        banner.classList.add("visible");
+      } else {
+        banner.classList.remove("visible");
+      }
+
+      loadRecent();
+      renderResults(data);
+
+    } catch (e) {
+      errEl.textContent = "Could not connect. Is the app running?";
+      errEl.classList.remove("hidden");
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────
+  function renderResults(data) {
+    document.getElementById("tree-box").textContent =
+      data.project_name + "/\n" + data.tree.join("\n");
+    updateStats();
+    renderFileList();
+    document.getElementById("results-section").classList.remove("hidden");
+    initSummary(data.existing_summary);
+    document.getElementById("generate-section").classList.remove("hidden");
+    document.getElementById("output-section").classList.add("hidden");
+  }
+
+  // ── Stats ─────────────────────────────────────────────────────
+  function updateStats() {
+    const activeFiles = allFiles.filter(f => !excludedFiles.has(f.path));
+    const activeTokens = activeFiles.reduce((sum, f) => sum + f.tokens, 0);
+    const MAX = 200000;
+    const pct = Math.min((activeTokens / MAX) * 100, 100);
+
+    const bar = document.getElementById("token-bar");
+    bar.style.width = pct + "%";
+    bar.className = "token-bar-fill" +
+      (pct > 90 ? " over" : pct > 60 ? " warn" : "");
+    document.getElementById("token-bar-text").textContent =
+      `${activeTokens.toLocaleString()} / ${MAX.toLocaleString()} tokens`;
+
+    document.getElementById("stats-row").innerHTML = `
+      <div class="stat">
+        <div class="value">${activeTokens.toLocaleString()}</div>
+        <div class="label">Tokens</div>
+      </div>
+      <div class="stat">
+        <div class="value">${activeFiles.length}</div>
+        <div class="label">Files included</div>
+      </div>
+      <div class="stat">
+        <div class="value">${excludedFiles.size > 0 ? excludedFiles.size : "—"}</div>
+        <div class="label">Files excluded</div>
+      </div>
+    `;
+
+    const summaryEl = document.getElementById("exclusion-summary");
+    if (excludedFiles.size > 0) {
+      summaryEl.innerHTML =
+        `<span>${excludedFiles.size}</span> ` +
+        `file${excludedFiles.size > 1 ? "s" : ""} excluded: ` +
+        [...excludedFiles].map(p =>
+          `<code style="color:#94a3b8">${p}</code>`).join(", ");
+      summaryEl.classList.add("visible");
+    } else {
+      summaryEl.classList.remove("visible");
+    }
+  }
+
+  // ── File list ─────────────────────────────────────────────────
+  function renderFileList() {
+    const fl = document.getElementById("file-list");
+    fl.innerHTML = allFiles.map((f, i) => {
+      const isExcluded = excludedFiles.has(f.path);
+      const ann = annotations[f.path] || "";
+      return `
+        <div class="file-item ${isExcluded ? "excluded" : ""}" id="file-row-${i}">
+          <div class="file-main">
+            <div class="file-left">
+              <span class="file-path">${escapeHtml(f.path)}</span>
+              <span class="excluded-badge">excluded</span>
+            </div>
+            <div class="file-right">
+              <span class="file-tokens">${f.tokens.toLocaleString()} tokens</span>
+              <label class="toggle ${editModeOn ? "" : "hidden"}" id="toggle-${i}">
+                <input type="checkbox"
+                  ${isExcluded ? "" : "checked"}
+                  onchange="toggleFile(${i})"/>
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+          </div>
+          <div class="annotation-row
+            ${editModeOn && !isExcluded ? "visible" : ""}"
+            id="ann-row-${i}">
+            <input type="text"
+              class="annotation-input ${ann ? "has-value" : ""}"
+              id="ann-input-${i}"
+              placeholder="Add a note about this file — the LLM will see this"
+              value="${escapeAttr(ann)}"
+              oninput="updateAnnotation(${i}, this.value)"
+            />
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  // ── Edit mode ─────────────────────────────────────────────────
+  function toggleEditMode() {
+    editModeOn = document.getElementById("edit-toggle").checked;
+    document.getElementById("edit-label").textContent =
+      editModeOn ? "Edit mode on" : "Edit mode off";
+    document.getElementById("edit-hint")
+      .classList.toggle("visible", editModeOn);
+    allFiles.forEach((f, i) => {
+      const t = document.getElementById(`toggle-${i}`);
+      const annRow = document.getElementById(`ann-row-${i}`);
+      const isExcluded = excludedFiles.has(f.path);
+      if (t) t.classList.toggle("hidden", !editModeOn);
+      if (annRow) {
+        if (editModeOn && !isExcluded) annRow.classList.add("visible");
+        else annRow.classList.remove("visible");
+      }
+    });
+  }
+
+  function toggleFile(index) {
+    const file = allFiles[index];
+    const row = document.getElementById(`file-row-${index}`);
+    const checkbox = document.querySelector(`#toggle-${index} input`);
+    const annRow = document.getElementById(`ann-row-${index}`);
+    if (checkbox.checked) {
+      excludedFiles.delete(file.path);
+      row.classList.remove("excluded");
+      if (editModeOn) annRow.classList.add("visible");
+    } else {
+      excludedFiles.add(file.path);
+      row.classList.add("excluded");
+      annRow.classList.remove("visible");
+    }
+    updateStats();
+  }
+
+  function updateAnnotation(index, value) {
+    const file = allFiles[index];
+    annotations[file.path] = value;
+    document.getElementById(`ann-input-${index}`)
+      .classList.toggle("has-value", value.trim().length > 0);
+  }
+
+  // ── Summary ───────────────────────────────────────────────────
+  function initSummary(existingSummary) {
+    const section = document.getElementById("summary-section");
+    const editorWrap = document.getElementById("summary-editor-wrap");
+    const status = document.getElementById("summary-status");
+    const deleteBtn = document.getElementById("summary-delete-btn");
+    const generateBtn = document.getElementById("summary-generate-btn");
+
+    section.classList.remove("hidden");
+
+    if (existingSummary) {
+      summaryExists = true;
+      document.getElementById("summary-editor").value = existingSummary;
+      editorWrap.style.display = "block";
+      deleteBtn.style.display = "inline-block";
+      generateBtn.textContent = "Regenerate";
+      status.textContent =
+        "Summary loaded. You can edit it or regenerate it.";
+    } else {
+      summaryExists = false;
+      editorWrap.style.display = "none";
+      deleteBtn.style.display = "none";
+      generateBtn.textContent = "Generate Summary";
+      status.textContent = groqKeySet
+        ? "No summary yet. Click Generate Summary to let Groq analyse your code."
+        : "Add your Groq API key (top right) to generate a summary.";
+    }
+  }
+
+  async function generateSummary() {
+    if (!groqKeySet) {
+      openGroqModal();
+      return;
+    }
+    const btn = document.getElementById("summary-generate-btn");
+    const loading = document.getElementById("summary-loading");
+    const editorWrap = document.getElementById("summary-editor-wrap");
+    const status = document.getElementById("summary-status");
+    const errEl = document.getElementById("summary-error");
+    const deleteBtn = document.getElementById("summary-delete-btn");
+
+    btn.disabled = true;
+    btn.textContent = "Generating...";
+    loading.style.display = "block";
+    editorWrap.style.display = "none";
+    errEl.classList.add("hidden");
+    status.textContent = "";
+
+    try {
+      const res = await fetch("/api/summary/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_path: scannedPath })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || "Failed to generate summary";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      document.getElementById("summary-editor").value = data.summary;
+      editorWrap.style.display = "block";
+      deleteBtn.style.display = "inline-block";
+      summaryExists = true;
+      status.textContent =
+        "Summary generated. You can edit it before generating prompts.";
+    } catch (e) {
+      errEl.textContent = "Could not connect to server.";
+      errEl.classList.remove("hidden");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Regenerate";
+      loading.style.display = "none";
+    }
+  }
+
+  async function saveSummary() {
+    const summary = document.getElementById("summary-editor").value.trim();
+    if (!summary) return;
+    const res = await fetch("/api/summary/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_path: scannedPath, summary })
+    });
+    if (res.ok) {
+      const saved = document.getElementById("summary-save-status");
+      saved.style.display = "inline";
+      setTimeout(() => { saved.style.display = "none"; }, 2000);
+    }
+  }
+
+  function copySummary() {
+    const summary = document.getElementById("summary-editor").value.trim();
+    if (!summary) return;
+    navigator.clipboard.writeText(summary).then(() => {
+      const btn = document.getElementById("summary-copy-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+    });
+  }
+
+  async function deleteSummary() {
+    await fetch("/api/summary/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_path: scannedPath })
+    });
+    summaryExists = false;
+    document.getElementById("summary-editor").value = "";
+    document.getElementById("summary-editor-wrap").style.display = "none";
+    document.getElementById("summary-delete-btn").style.display = "none";
+    document.getElementById("summary-generate-btn").textContent =
+      "Generate Summary";
+    document.getElementById("summary-status").textContent =
+      "Summary removed. Click Generate Summary to create a new one.";
+  }
+
+  // ── Generate ──────────────────────────────────────────────────
+  async function generatePrompts() {
+    const task = document.getElementById("task-input").value.trim();
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_path: scannedPath,
+        task,
+        excluded: [...excludedFiles],
+        annotations,
+        include_summary: summaryExists
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+    generatedParts = data.parts;
+    showOutput(data);
+  }
+
+  // ── Output ────────────────────────────────────────────────────
+  function showOutput(data) {
+    const wrap = document.getElementById("instructions-wrap");
+    if (data.total_parts === 1) {
+      wrap.innerHTML = `<div class="instructions">
+        <strong>1 prompt generated.</strong>
+        Copy it and paste into a new LLM chat. Your task is at the bottom.
+      </div>`;
+    } else {
+      let steps = "";
+      for (let i = 0; i < data.total_parts; i++) {
+        steps += i < data.total_parts - 1
+          ? `<strong>Step ${i+1}:</strong> Paste Part ${i+1} →
+             wait for LLM to confirm receipt<br>`
+          : `<strong>Step ${i+1}:</strong> Paste Part ${i+1} →
+             LLM will begin your task`;
+      }
+      wrap.innerHTML = `<div class="instructions">
+        <strong>${data.total_parts} prompts generated.</strong>
+        Paste them in order:<br><br>${steps}
+      </div>`;
+    }
+
+    document.getElementById("parts-list").innerHTML =
+      data.parts.map((p, i) => `
+        <div class="part-item">
+          <div class="part-header">
+            <span class="part-title">Part ${p.part} of ${data.total_parts}</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="part-tokens">${p.tokens.toLocaleString()} tokens</span>
+              <button class="copy-btn" id="copy-btn-${i}"
+                onclick="copyPart(${i})">Copy</button>
+            </div>
+          </div>
+          <div class="prompt-preview">
+            ${escapeHtml(p.content.substring(0, 300))}...
+          </div>
+        </div>
+      `).join("");
+
+    document.getElementById("output-section").classList.remove("hidden");
+    document.getElementById("output-section")
+      .scrollIntoView({ behavior: "smooth" });
+  }
+
+  function copyPart(index) {
+    navigator.clipboard.writeText(generatedParts[index].content).then(() => {
+      const btn = document.getElementById(`copy-btn-${index}`);
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.textContent = "Copy";
+        btn.classList.remove("copied");
+      }, 2000);
+    });
+  }
+
+  // ── Reset ─────────────────────────────────────────────────────
+  function resetAll() {
+    scannedPath = ""; allFiles = [];
+    excludedFiles = new Set(); annotations = {};
+    generatedParts = []; editModeOn = false;
+    summaryExists = false;
+
+    document.getElementById("project-path").value = "";
+    document.getElementById("task-input").value = "";
+    document.getElementById("edit-toggle").checked = false;
+    document.getElementById("edit-label").textContent = "Edit mode off";
+    document.getElementById("edit-hint").classList.remove("visible");
+    document.getElementById("ignore-banner").classList.remove("visible");
+    document.getElementById("summary-editor").value = "";
+    document.getElementById("summary-editor-wrap").style.display = "none";
+
+    ["results-section", "generate-section",
+     "output-section", "scan-error", "summary-section"]
+      .forEach(id => document.getElementById(id).classList.add("hidden"));
+  }
+
+  function escapeHtml(t) {
+    return (t||"").replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+  function escapeAttr(t) {
+    return (t||"").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+
+  document.getElementById("project-path").addEventListener("keydown", e => {
+    if (e.key === "Enter") scanProject();
+  });
+</script>
+</body>
+</html>
