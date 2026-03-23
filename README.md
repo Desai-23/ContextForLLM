@@ -4,7 +4,6 @@ A local web UI that scans any project folder on your machine, lets you select an
 
 ---
 
-
 ## Why this exists
 
 Every other tool in this space is a CLI that dumps your entire repo into one file. ContextForLLM gives you a browser UI where you can:
@@ -27,25 +26,20 @@ Every other tool in this space is a CLI that dumps your entire repo into one fil
 
 You need Python 3.8 or higher installed.
 
-**Step 1 — Clone the repo**
+### Option 1 — Install from PyPI (recommended)
+```bash
+pip3 install contextforllm
+contextforllm
+```
+
+That's it. The browser opens automatically.
+
+### Option 2 — Install from source
 ```bash
 git clone https://github.com/Desai-23/ContextForLLM.git
 cd ContextForLLM
-```
-
-**Step 2 — Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-**Step 3 — Run the app**
-```bash
-python app.py
-```
-
-Then open your browser at:
-```
-http://localhost:5000
+bash install.sh
+bash run.sh
 ```
 
 ---
@@ -111,3 +105,14 @@ The AI summary feature requires a free Groq API key.
 ## License
 
 MIT
+
+
+
+
+
+
+
+
+
+
+
