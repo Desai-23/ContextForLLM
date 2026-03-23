@@ -18,7 +18,7 @@ from project_summary import (
     delete_summary,
 )
 
-app = Flask(__name__, static_folder="ui")
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "ui"))
 
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
 RECENT_FILE = os.path.join(TOOL_DIR, "recent_projects.json")

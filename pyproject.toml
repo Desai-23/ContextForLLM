@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "contextforllm"
+version = "0.1.0"
+description = "Local web UI for generating LLM-ready context from any codebase"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+dependencies = [
+    "flask",
+    "tiktoken",
+    "groq",
+]
+
+[project.scripts]
+contextforllm = "contextforllm.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["contextforllm*"]
+
+[tool.setuptools.package-data]
+contextforllm = ["ui/*"]

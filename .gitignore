@@ -23,3 +23,7 @@ recent_projects.json
 # IDE
 .vscode/
 .idea/
+
+.env 
+
+contextforllm.egg-info/

@@ -277,6 +277,22 @@
       Your key is used only for this session and is never saved to disk.
       Get a free key at <strong>console.groq.com</strong>.
     </p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     <input type="password" id="groq-key-input"
       placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"/>
     <div class="modal-error" id="groq-modal-error"></div>
@@ -501,6 +517,11 @@
   // Enter key in key input
   document.getElementById("groq-key-input").addEventListener("keydown", e => {
     if (e.key === "Enter") saveGroqKey();
+    if (e.key === "Escape") closeGroqModal();
+  });
+  
+     document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeGroqModal();
   });
 
   // ── Recent projects ───────────────────────────────────────────
